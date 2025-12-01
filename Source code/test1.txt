@@ -1,0 +1,23 @@
+[preprocessor section begin]
+##program "test_code"
+##perceive AGE 19
+##inaddition "functions.txt"
+[preprocessor section end]
+
+[function section begin]
+int algo sum2 (int a, int b)
+{
+	est int c;
+	c = a + b;
+	return c;
+}
+[function section end]
+
+[superior function begin]
+ces
+{
+	est int r;
+	r = sum2(2, 3);
+	proclaim(r);
+}
+[superior function end]
