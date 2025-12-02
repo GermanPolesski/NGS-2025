@@ -11,10 +11,13 @@ namespace Error {
 	//Errors 501-1000: Other errors
 	error errors[1000] {
 		error(0, "No input files in call"),
-		error(1, "No flag in call"),
+		error(1, "No flag or input file in call"),
 		error(2, "No files found"),
 		error(3, "Incorrect flag"),
 		error(4, "Unknown error with call to compiler"),
+		error(5, "Input file wasn't opened correctly"),
+		error(76, "There is no preprocessor section"),
+		error(77, "There is no such file to insert"),
 		error(999, "Error caused by an error"),
 		error(1000, "Unknown error")
 	};
@@ -25,6 +28,6 @@ namespace Error {
 		return errors[id];
 	}
 	void ThrowConsole (unsigned short id) {
-		cout << '\n' << errors[id].id << ": " << errors[id].message;
+		cout << '\n' << errors[id].id << ": " << errors[id].message << '\n' << '\n';
 	}
 }
