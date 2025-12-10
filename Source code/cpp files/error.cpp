@@ -16,8 +16,12 @@ namespace Error {
 		error(3, "Incorrect flag"),
 		error(4, "Unknown error with call to compiler"),
 		error(5, "Input file wasn't opened correctly"),
+		error(31, "Log file was wrote incorrectrly"),
 		error(76, "There is no preprocessor section"),
 		error(77, "There is no such file to insert"),
+		error(78, "Unknown error with preprocessor occured"),
+		error(101, "Unknown error occured during Lexical analysis"),
+		error(998, "Unallowed symbol"),
 		error(999, "Error caused by an error"),
 		error(1000, "Unknown error")
 	};
