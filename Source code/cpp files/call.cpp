@@ -8,7 +8,7 @@
 //-o: object code (code 4)
 //-r: run project (code 5)
 
-const char* flags[] = {"-p", "-log", "-l", "-s", "-o", "-r"};
+const char* flags[] = {"-p", "-l", "-s", "-sem", "-j", "-r"};
 const short flagCodes[] = {0, 1, 2, 3, 4, 5};
 const unsigned short numFlags = sizeof(flags) / sizeof(flags[0]);
 
@@ -61,3 +61,47 @@ short processCall (int argc, char* argv[], string input_files[], string& output_
 
 	return code;
 }
+
+bool performPreprocessing(std::string input_files[], std::string& output_filename, 
+                        std::string& preprocessed_code) {
+							std::cout << "Preprocessing...\n";
+    short prep_result = Preprocess(input_files, output_filename);
+    
+    if (prep_result != 0) {
+        std::cout << "Preprocessing failed with error code: " << prep_result << std::endl;
+        return false;
+    }
+    
+    std::cout << "Preprocessing successful!\n";
+    std::cout << "Output file: " << output_filename << std::endl;
+    
+    if (!FileWork::fileExists(output_filename)) {
+        std::cout << "Error: Preprocessed file not found: " << output_filename << "\n";
+        return false;
+    }
+    
+    std::cout << "Reading preprocessed code...\n";
+    preprocessed_code = FileWork::ReadFile(output_filename);
+    if (preprocessed_code.empty()) {
+        std::cout << "Error: Preprocessed file is empty: " << output_filename << "\n";
+        return false;
+    }
+    
+    std::cout << "File read successfully, size: " << preprocessed_code.size() << " bytes\n";
+    return true;
+}
+
+bool performLexicalAnalysis(const std::string& source_code, const std::string& filename,
+                           std::vector<lexan::Token>& tokens) {
+		std::cout << "Lexical analysis...\n";
+		lexan::Lexer lexer(source_code, filename);
+		tokens = lexer.tokenize();
+		
+		if (tokens.empty()) {
+			std::cout << "Error: No tokens generated\n";
+			return false;
+		}
+		
+		std::cout << "Tokens generated: " << tokens.size() << std::endl;
+		return true;
+	}

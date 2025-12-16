@@ -1,176 +1,440 @@
 #include <precomph.h>
+#include <sstream>
+#include <string>
+#include <vector>
+#include <cstring>
 
-short Preprocess (string input_files[], string& output_file) {
-    string source_code = FileWork::ReadFile(input_files[0]);
-    string preprocessed_code = source_code;
+using namespace std;
+
+static inline bool extract_quoted(const string& s, size_t start_pos, string& out) {
+    size_t q1 = s.find('"', start_pos);
+    if (q1 == string::npos) return false;
+    size_t q2 = s.find('"', q1 + 1);
+    if (q2 == string::npos) return false;
+    out = s.substr(q1 + 1, q2 - q1 - 1);
+    return true;
+}
+
+short Preprocess(string input_files[], string& output_file) {
     string log_content;
-    string additional_code;
-
     log_content.append("=====Preprocessor log=====\n");
 
-    // проверка начала секции
-    if (source_code.substr(0, 28) != "[preprocessor section begin]") {
+    // 1) Read main source
+    const string main_file = input_files[0];
+    string preprocessed_code = FileWork::ReadFile(main_file);
+    if (preprocessed_code.empty()) {
+        log_content.append("Error: main file is empty or unreadable: " + main_file + "\n");
+        FileWork::WriteFile(main_file + ".log", log_content);
+        Error::ThrowConsole(5);
+        return -1;
+    }
+    log_content.append("Main file read: " + main_file + "\n");
+
+    // 2) Validate preprocessor section header
+    if (preprocessed_code.find("[preprocessor section begin]") == string::npos) {
         size_t err_pos = 0;
-        int row = FileWork::FindRow(source_code, err_pos);
-        int col = FileWork::FindCol(source_code, err_pos);
-        log_content.append("Error 76 at row " + to_string(row) + ", col " + to_string(col) + '\n');
-
-        string log_file = input_files[0] + ".log";
-        FileWork::WriteFile(log_file, log_content);
-
+        int row = FileWork::FindRow(preprocessed_code, err_pos);
+        int col = FileWork::FindCol(preprocessed_code, err_pos);
+        log_content.append("Error 76 at row " + to_string(row) + ", col " + to_string(col) + "\n");
+        FileWork::WriteFile(main_file + ".log", log_content);
         Error::ThrowConsole(76);
         return -1;
     }
 
-    // ##program
-    size_t pos = source_code.find("##program");
-    if (pos != string::npos) {
-        size_t start = source_code.find('"', pos);
-        size_t end   = source_code.find('"', start + 1);
-        if (start == string::npos || end == string::npos) {
-            int row = FileWork::FindRow(source_code, pos);
-            int col = FileWork::FindCol(source_code, pos);
-            log_content.append("Error: malformed ##program at row " + to_string(row) + ", col " + to_string(col) + '\n');
-
-            string log_file = input_files[0] + ".log";
-            FileWork::WriteFile(log_file, log_content);
-
-            Error::ThrowConsole(77);
-            return -1;
+    // 3) Handle ##program "name" → output_file = name.txt
+    {
+        size_t pos = preprocessed_code.find("##program");
+        if (pos != string::npos) {
+            string out_name;
+            if (!extract_quoted(preprocessed_code, pos, out_name)) {
+                int row = FileWork::FindRow(preprocessed_code, pos);
+                int col = FileWork::FindCol(preprocessed_code, pos);
+                log_content.append("Error: malformed ##program at row " + to_string(row) + ", col " + to_string(col) + "\n");
+                FileWork::WriteFile(main_file + ".log", log_content);
+                Error::ThrowConsole(77);
+                return -1;
+            }
+            output_file = out_name + ".txt";
+            log_content.append("Output filename set to: " + output_file + "\n");
+            
+            // Remove ##program directive
+            size_t line_end = preprocessed_code.find('\n', pos);
+            if (line_end == string::npos) line_end = preprocessed_code.size();
+            preprocessed_code.erase(pos, line_end - pos + 1);
+        } else {
+            // default: derive from main_file
+            size_t dot = main_file.find_last_of('.');
+            output_file = (dot == string::npos) ? (main_file + ".txt")
+                                               : (main_file.substr(0, dot) + ".txt");
+            log_content.append("Output filename derived: " + output_file + "\n");
         }
-        output_file = source_code.substr(start + 1, end - start - 1) + ".txt";
-        log_content.append("New filename: " + output_file + '\n');
     }
 
-    // ##inaddition
-    pos = source_code.find("##inaddition");
-    unsigned short inp = 1;
-    while (pos != string::npos) {
-        size_t start = source_code.find('"', pos);
-        size_t end   = source_code.find('"', start + 1);
-        if (start == string::npos || end == string::npos) {
-            int row = FileWork::FindRow(source_code, pos);
-            int col = FileWork::FindCol(source_code, pos);
-            log_content.append("Error: malformed ##inaddition at row " + to_string(row) + ", col " + to_string(col) + '\n');
-
-            string log_file = input_files[0] + ".log";
-            FileWork::WriteFile(log_file, log_content);
-
-            Error::ThrowConsole(78);
-            return -1;
-        }
-
-        additional_code = FileWork::ReadFile(input_files[inp]);
-        size_t func_sec_before = additional_code.find("[function section begin]");
-        size_t func_sec_after  = additional_code.find("[function section end]");
-        if (func_sec_before != string::npos && func_sec_after != string::npos) {
-            string functions = additional_code.substr(func_sec_before + 23,
-                                    func_sec_after - (func_sec_before + 23));
-            size_t insert_pos = preprocessed_code.find("[function section begin]");
-            if (insert_pos != string::npos) {
-                preprocessed_code.insert(insert_pos + 23, functions);
-                int row = FileWork::FindRow(preprocessed_code, insert_pos);
-                int col = FileWork::FindCol(preprocessed_code, insert_pos);
-                log_content.append("Inserted functions from " + input_files[inp] +
-                                   " at row " + to_string(row) + ", col " + to_string(col) + '\n');
+    // 4) Handle ##inaddition "file" - insert functions and macros
+    {
+        size_t pos = 0;
+        int added_count = 0;
+        
+        while ((pos = preprocessed_code.find("##inaddition", pos)) != string::npos) {
+            // Extract filename from quotes
+            size_t quote_start = preprocessed_code.find('"', pos);
+            if (quote_start == string::npos) {
+                int row = FileWork::FindRow(preprocessed_code, pos);
+                int col = FileWork::FindCol(preprocessed_code, pos);
+                log_content.append("Error: malformed ##inaddition at row " + to_string(row) +
+                                   ", col " + to_string(col) + "\n");
+                FileWork::WriteFile(main_file + ".log", log_content);
+                Error::ThrowConsole(78);
+                return -1;
             }
-        }
-
-        size_t pos_perceive = 0;
-        while ((pos_perceive = additional_code.find("##perceive", pos_perceive)) != string::npos) {
-            size_t line_end = additional_code.find('\n', pos_perceive);
-            if (line_end == string::npos) line_end = additional_code.size();
-            string macro = additional_code.substr(pos_perceive, line_end - pos_perceive);
-            size_t end_of_macro_section = preprocessed_code.find("[preprocessor section end]");
-            if (end_of_macro_section != string::npos) {
-                preprocessed_code.insert(end_of_macro_section, macro + "\n");
-                int row = FileWork::FindRow(preprocessed_code, end_of_macro_section);
-                int col = FileWork::FindCol(preprocessed_code, end_of_macro_section);
-                log_content.append("Inserted macro {" + macro + "} from " + input_files[inp] +
-                                   " at row " + to_string(row) + ", col " + to_string(col) + '\n');
+            
+            size_t quote_end = preprocessed_code.find('"', quote_start + 1);
+            if (quote_end == string::npos) {
+                int row = FileWork::FindRow(preprocessed_code, pos);
+                int col = FileWork::FindCol(preprocessed_code, pos);
+                log_content.append("Error: malformed ##inaddition at row " + to_string(row) +
+                                   ", col " + to_string(col) + "\n");
+                FileWork::WriteFile(main_file + ".log", log_content);
+                Error::ThrowConsole(78);
+                return -1;
             }
-            pos_perceive = line_end + 1;
-        }
-
-        inp++;
-        pos = source_code.find("##inaddition", pos + 12);
-    }
-
-    // ##perceive
-    pos = preprocessed_code.find("##perceive");
-    while (pos != string::npos) {
-        size_t line_end = preprocessed_code.find('\n', pos);
-        if (line_end == string::npos) line_end = preprocessed_code.size();
-
-        size_t macro_name_start = pos + 11;
-        size_t macro_name_end   = preprocessed_code.find(' ', macro_name_start);
-        if (macro_name_end == string::npos || macro_name_end > line_end) {
-            int row = FileWork::FindRow(preprocessed_code, pos);
-            int col = FileWork::FindCol(preprocessed_code, pos);
-            log_content.append("Error: malformed ##perceive at row " + to_string(row) + ", col " + to_string(col) + '\n');
-
-            string log_file = input_files[0] + ".log";
-            FileWork::WriteFile(log_file, log_content);
-
-            Error::ThrowConsole(79);
-            return -1;
-        }
-
-        string macro_name  = preprocessed_code.substr(macro_name_start, macro_name_end - macro_name_start);
-        size_t macro_value_start = macro_name_end + 1;
-        if (macro_value_start > line_end) {
-            int row = FileWork::FindRow(preprocessed_code, pos);
-            int col = FileWork::FindCol(preprocessed_code, pos);
-            log_content.append("Error: missing macro value at row " + to_string(row) + ", col " + to_string(col) + '\n');
-
-            string log_file = input_files[0] + ".log";
-            FileWork::WriteFile(log_file, log_content);
-
-            Error::ThrowConsole(80);
-            return -1;
-        }
-        string macro_value = preprocessed_code.substr(macro_value_start, line_end - macro_value_start);
-
-        size_t pos_to_replace = 0;
-        while ((pos_to_replace = preprocessed_code.find(macro_name, pos_to_replace)) != string::npos) {
-            if (!(pos_to_replace >= pos && pos_to_replace < line_end)) {
-                preprocessed_code.replace(pos_to_replace, macro_name.size(), macro_value);
-                int row = FileWork::FindRow(preprocessed_code, pos_to_replace);
-                int col = FileWork::FindCol(preprocessed_code, pos_to_replace);
-                log_content.append("Inserted " + macro_value + " instead of " + macro_name +
-                                   " at row " + to_string(row) + ", col " + to_string(col) + '\n');
-                pos_to_replace += macro_value.size();
+            
+            string add_filename = preprocessed_code.substr(quote_start + 1, 
+                                                         quote_end - quote_start - 1);
+            
+            // Read additional file
+            string additional_code = FileWork::ReadFile(add_filename);
+            if (additional_code.empty()) {
+                log_content.append("Warning: additional file empty or not found: " + 
+                                   add_filename + "\n");
+                
+                // Remove directive anyway
+                size_t line_end = preprocessed_code.find('\n', pos);
+                if (line_end == string::npos) line_end = preprocessed_code.size();
+                preprocessed_code.erase(pos, line_end - pos + 1);
+                continue;
+            }
+            
+            log_content.append("Processing additional file: " + add_filename + "\n");
+            
+            // Try both singular and plural markers for function section
+            string func_begin_marker = "[function section begin]";
+            string func_end_marker = "[function section end]";
+            
+            size_t func_begin = additional_code.find(func_begin_marker);
+            size_t func_end = additional_code.find(func_end_marker);
+            
+            // If not found with singular, try plural
+            if (func_begin == string::npos || func_end == string::npos) {
+                func_begin_marker = "[functions section begin]";
+                func_end_marker = "[functions section end]";
+                func_begin = additional_code.find(func_begin_marker);
+                func_end = additional_code.find(func_end_marker);
+            }
+            
+            if (func_begin != string::npos && func_end != string::npos && func_end > func_begin) {
+                // Extract functions (excluding markers)
+                string functions = additional_code.substr(
+                    func_begin + func_begin_marker.length(), 
+                    func_end - func_begin - func_begin_marker.length()
+                );
+                
+                // Find where to insert in main file (try both singular and plural)
+                string target_marker = "[functions section begin]";
+                size_t insert_pos = preprocessed_code.find(target_marker);
+                
+                if (insert_pos == string::npos) {
+                    // Try singular
+                    target_marker = "[function section begin]";
+                    insert_pos = preprocessed_code.find(target_marker);
+                }
+                
+                if (insert_pos != string::npos) {
+                    // Insert after the marker
+                    size_t insert_after = insert_pos + target_marker.length();
+                    
+                    // Trim leading/trailing whitespace from functions
+                    size_t func_start = functions.find_first_not_of(" \t\n\r");
+                    if (func_start != string::npos) {
+                        size_t func_end_pos = functions.find_last_not_of(" \t\n\r");
+                        functions = functions.substr(func_start, func_end_pos - func_start + 1);
+                    }
+                    
+                    preprocessed_code.insert(insert_after, "\n" + functions + "\n");
+                    
+                    log_content.append("Successfully inserted functions from " + 
+                                       add_filename + " after " + target_marker + "\n");
+                    added_count++;
+                } else {
+                    log_content.append("Warning: function section marker not found in main file\n");
+                }
             } else {
-                pos_to_replace = line_end;
+                log_content.append("Warning: function section not found in " + 
+                                   add_filename + " (tried both singular and plural markers)\n");
+            }
+            
+            // Extract and add ##perceive macros from additional file
+            size_t macro_pos = 0;
+            while ((macro_pos = additional_code.find("##perceive", macro_pos)) != string::npos) {
+                size_t line_end = additional_code.find('\n', macro_pos);
+                if (line_end == string::npos) line_end = additional_code.size();
+                
+                string macro_line = additional_code.substr(macro_pos, line_end - macro_pos);
+                
+                // Find preprocessor section end in main file to insert before it
+                size_t pp_end = preprocessed_code.find("[preprocessor section end]");
+                if (pp_end != string::npos) {
+                    preprocessed_code.insert(pp_end, macro_line + "\n");
+                    log_content.append("Added macro from " + add_filename + ": " + macro_line + "\n");
+                }
+                
+                macro_pos = (line_end == additional_code.size()) ? line_end : (line_end + 1);
+            }
+
+            // Remove the ##inaddition directive
+            size_t line_end = preprocessed_code.find('\n', pos);
+            if (line_end == string::npos) line_end = preprocessed_code.size();
+            preprocessed_code.erase(pos, line_end - pos + 1);
+            
+            // Continue searching from the beginning (since we modified the string)
+            pos = 0;
+        }
+        
+        log_content.append("Processed ##inaddition directives: " + 
+                          to_string(added_count) + "\n");
+    }
+
+    // 5) Process all ##perceive macros
+    {
+        vector<pair<string, string>> macros;
+        
+        // First pass: collect all macros
+        size_t pos = 0;
+        while ((pos = preprocessed_code.find("##perceive", pos)) != string::npos) {
+            size_t line_end = preprocessed_code.find('\n', pos);
+            if (line_end == string::npos) line_end = preprocessed_code.size();
+            
+            string macro_line = preprocessed_code.substr(pos, line_end - pos);
+            
+            // Parse macro: ##perceive NAME VALUE
+            size_t name_start = pos + 10; // Skip "##perceive"
+            while (name_start < line_end && (preprocessed_code[name_start] == ' ' || preprocessed_code[name_start] == '\t')) {
+                name_start++;
+            }
+            
+            size_t name_end = name_start;
+            while (name_end < line_end && preprocessed_code[name_end] != ' ' && preprocessed_code[name_end] != '\t') {
+                name_end++;
+            }
+            
+            if (name_end >= line_end) {
+                log_content.append("Error: invalid ##perceive format\n");
+                break;
+            }
+            
+            string macro_name = preprocessed_code.substr(name_start, name_end - name_start);
+            
+            size_t value_start = name_end;
+            while (value_start < line_end && (preprocessed_code[value_start] == ' ' || preprocessed_code[value_start] == '\t')) {
+                value_start++;
+            }
+            
+            if (value_start >= line_end) {
+                log_content.append("Error: missing value in ##perceive\n");
+                break;
+            }
+            
+            string macro_value = preprocessed_code.substr(value_start, line_end - value_start);
+            
+            // Trim trailing whitespace from value
+            size_t value_end = macro_value.find_last_not_of(" \t\r");
+            if (value_end != string::npos) {
+                macro_value = macro_value.substr(0, value_end + 1);
+            }
+            
+            macros.push_back({macro_name, macro_value});
+            log_content.append("Macro defined: " + macro_name + " = " + macro_value + "\n");
+            
+            // Remove macro line
+            preprocessed_code.erase(pos, line_end - pos + 1);
+        }
+        
+        // Second pass: replace all occurrences of macros
+        for (const auto& macro : macros) {
+            size_t replace_pos = 0;
+            while ((replace_pos = preprocessed_code.find(macro.first, replace_pos)) != string::npos) {
+                // Check if it's a whole word (not part of another identifier)
+                bool is_whole_word = true;
+                if (replace_pos > 0) {
+                    char prev = preprocessed_code[replace_pos - 1];
+                    if (isalnum(prev) || prev == '_') {
+                        is_whole_word = false;
+                    }
+                }
+                
+                if (replace_pos + macro.first.length() < preprocessed_code.length()) {
+                    char next = preprocessed_code[replace_pos + macro.first.length()];
+                    if (isalnum(next) || next == '_') {
+                        is_whole_word = false;
+                    }
+                }
+                
+                if (is_whole_word) {
+                    preprocessed_code.replace(replace_pos, macro.first.length(), macro.second);
+                    replace_pos += macro.second.length();
+                    log_content.append("  Replaced " + macro.first + " with " + macro.second + "\n");
+                } else {
+                    replace_pos += macro.first.length();
+                }
             }
         }
-
-        preprocessed_code.erase(pos, line_end - pos + 1);
-        pos = preprocessed_code.find("##perceive", pos);
     }
 
-    log_content.append("==========================\n\n");
+    // 6) Remove ALL section markers including both singular and plural versions
+    {
+        // Remove all possible section markers
+        vector<pair<string, string>> markers_to_remove = {
+            {"[preprocessor section begin]", "Preprocessor section begin"},
+            {"[preprocessor section end]", "Preprocessor section end"},
+            {"[functions section begin]", "Functions section begin (plural)"},
+            {"[functions section end]", "Functions section end (plural)"},
+            {"[function section begin]", "Function section begin (singular)"},
+            {"[function section end]", "Function section end (singular)"},
+            {"[superior function begin]", "Superior function begin"},
+            {"[superior function end]", "Superior function end"}
+        };
+        
+        for (const auto& marker : markers_to_remove) {
+            const string& marker_text = marker.first;
+            const string& marker_name = marker.second;
+            
+            size_t pos = 0;
+            while ((pos = preprocessed_code.find(marker_text, pos)) != string::npos) {
+                preprocessed_code.erase(pos, marker_text.length());
+                log_content.append("Removed: " + marker_name + "\n");
+                // Don't advance pos since we just removed the marker
+            }
+        }
+        
+        // Remove any remaining individual brackets just in case
+        size_t pos = 0;
+        while ((pos = preprocessed_code.find('[')) != string::npos) {
+            preprocessed_code.erase(pos, 1);
+            log_content.append("Removed stray '['\n");
+        }
+        
+        pos = 0;
+        while ((pos = preprocessed_code.find(']')) != string::npos) {
+            preprocessed_code.erase(pos, 1);
+            log_content.append("Removed stray ']'\n");
+        }
+    }
 
-    string log_file = output_file;
-    size_t dot_pos = log_file.rfind(".txt");
+    // 7) Remove @...@ comments
+    {
+        size_t at_pos = 0;
+        while ((at_pos = preprocessed_code.find('@', at_pos)) != string::npos) {
+            size_t next_at = preprocessed_code.find('@', at_pos + 1);
+            if (next_at != string::npos) {
+                // Check for tab before comment
+                size_t remove_start = at_pos;
+                if (remove_start > 0 && preprocessed_code[remove_start - 1] == '\t') {
+                    remove_start--;
+                }
+                
+                preprocessed_code.erase(remove_start, next_at - remove_start + 1);
+                at_pos = remove_start;
+            } else {
+                preprocessed_code.erase(at_pos, 1);
+            }
+        }
+    }
+
+    // 8) Clean up empty lines and whitespace
+    {
+        istringstream iss(preprocessed_code);
+        ostringstream oss;
+        string line;
+        int removed_count = 0;
+        
+        while (getline(iss, line)) {
+            // Trim leading and trailing whitespace
+            size_t start = line.find_first_not_of(" \t\r");
+            if (start == string::npos) {
+                removed_count++;
+                continue;
+            }
+            
+            size_t end = line.find_last_not_of(" \t\r");
+            string trimmed = line.substr(start, end - start + 1);
+            
+            if (!trimmed.empty()) {
+                oss << trimmed << "\n";
+            }
+        }
+        
+        preprocessed_code = oss.str();
+        
+        // Remove trailing newline if present
+        if (!preprocessed_code.empty() && preprocessed_code.back() == '\n') {
+            preprocessed_code.pop_back();
+        }
+        
+        if (removed_count > 0) {
+            log_content.append("Removed " + to_string(removed_count) + " empty lines\n");
+        }
+    }
+
+    // 9) Final cleanup - remove any leftover markers that might have been missed
+    {
+        // Remove any markers that might have been left
+        vector<string> leftover_markers = {
+            "section begin]", "section end]", "function begin]", "function end]",
+            "[preprocessor", "[functions", "[function", "[superior"
+        };
+        
+        for (const auto& marker : leftover_markers) {
+            size_t pos = 0;
+            while ((pos = preprocessed_code.find(marker, pos)) != string::npos) {
+                // Remove from the previous '[' if exists, or just the marker
+                size_t start = preprocessed_code.rfind('[', pos);
+                if (start != string::npos && start < pos) {
+                    preprocessed_code.erase(start, pos + marker.length() - start);
+                    pos = start;
+                } else {
+                    preprocessed_code.erase(pos, marker.length());
+                }
+            }
+        }
+    }
+
+    log_content.append("==========================\n");
+
+    // 10) Write output files
+    string base_name = output_file;
+    size_t dot_pos = base_name.find_last_of('.');
     if (dot_pos != string::npos) {
-        log_file.replace(dot_pos, 4, ".log");
-    } else {
-        log_file += ".log";
+        base_name = base_name.substr(0, dot_pos);
     }
+    
+    string log_file = base_name + ".log";
+    string prep_file = base_name + "_prep.txt";
+    
+    // Write preprocessed code
+    if (!FileWork::WriteFile(prep_file, preprocessed_code)) {
+        log_content.append("Error: could not write preprocessed file\n");
+        FileWork::WriteFile(log_file, log_content);
+    }
+    
+    // Write log
     FileWork::WriteFile(log_file, log_content);
-
-    string prep_file = output_file;
-    dot_pos = prep_file.rfind(".txt");
-    if (dot_pos != string::npos) {
-        prep_file.replace(dot_pos, 4, "_prep.txt");
-    } else {
-        prep_file += "_prep.txt";
-    }
-    FileWork::WriteFile(prep_file, preprocessed_code);
-    cout << "Preprocessed successfully!\n";
-    cout << prep_file << " was created\n";
-    cout << log_file << " log wrote here\n";
-
+    
+    // Set output file for next stages
+    output_file = prep_file;
+    
+    cout << "Preprocessing completed successfully!\n";
+    cout << "  Output file: " << prep_file << "\n";
+    cout << "  Log file:    " << log_file << "\n";
+    
     return 0;
 }

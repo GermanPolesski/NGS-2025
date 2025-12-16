@@ -4,7 +4,7 @@
 [preprocessor section end]
 
 [function section begin]
-int algo sum4 (int a, int b, int c, int d)
+int algo SumarizE (int a, int b, int c, int d)
 {
 	return a + b + c + d;
 }

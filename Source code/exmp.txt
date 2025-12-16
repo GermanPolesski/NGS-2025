@@ -1,0 +1,83 @@
+[preprocessor section begin]
+##program "out"
+##inaddition "functions.txt"
+##perceive AGE 19
+##perceive NAME "Gleb"
+[preprocessor section end]
+
+[functions section begin]
+procedure algo SayHello()
+{
+    est string hello;
+    hello = "Hello " + "Gleb" + " !";
+    proclaim(hello);
+}
+bool algo IsGreater(unsigned int a, unsigned int b)
+{
+    return a > b;
+}
+[functions section end]
+
+[superior function begin]
+ces
+{
+    est string message;
+    message = "Here everything begins!";
+    proclaim(message);
+    est unsigned int x;
+    est unsigned int y;
+    x = 5;
+    y = 10;
+    est bool z;
+    z = IsGreater(x, y);
+    proclaim(z);
+    est string str1;
+    str1 = to_str(z);
+    proclaim(str1);
+    est int i;
+    i = 0;
+    do
+    {
+        message = "This is " + to_str(i) + "th iteration";
+        proclaim(message);
+        i = i + 1;
+    }	while (i < 5);
+    est time_t curr;
+    curr = ThisVeryMoment();
+    proclaim(curr);
+    est time_t years;
+    years = curr / 31557600 + 1970;
+    proclaim("сейчас ");
+    proclaim(years);
+    proclaim(" год");
+    message = to_str(TimeFled("16112006", "17122025"));
+    est int a;
+    a = (((2 + 3) * 4) - 12) ^ 2;
+    message = to_str(a);
+    proclaim(message);
+    est int hex1;
+    est int hex2;
+    hex1 = 0xf;
+    hex2 = 0xa;
+    message = to_str(hex1 + hex2);
+    proclaim(message);
+    a = SumarizE(19, hex2, 3, 0xf);
+    message = to_str(a);
+    proclaim(message);
+    est int oct1;
+    est int oct2;
+    oct1 = 04;
+    oct2 = 07;
+    a = oct1 + oct2;
+    message = to_str(a);
+    proclaim(message);
+    est symb first;
+    est symb second;
+    est symb third;
+    first = 'n';
+    second = 'g';
+    third = 's';
+    message = unite(3, first, second, third);
+    proclaim(message);
+}
+[superior function end]
