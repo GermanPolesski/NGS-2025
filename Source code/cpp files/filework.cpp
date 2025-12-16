@@ -53,10 +53,10 @@ namespace FileWork {
         }
 
         std::string getCurrentDateTime() {
-        std::time_t now = std::time(nullptr);
-        std::tm* tm_now = std::localtime(&now);
-        char buffer[80];
-        std::strftime(buffer, sizeof(buffer), "%Y-%m-%d %H:%M:%S", tm_now);
-        return std::string(buffer);
-    }
+            std::time_t now = std::time(nullptr);
+            std::tm* tm_now = std::localtime(&now);
+            char buffer[80];
+            std::strftime(buffer, sizeof(buffer), "%Y-%m-%d %H:%M:%S", tm_now);
+            return std::string(buffer);
+        }
 }

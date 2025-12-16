@@ -1,6 +1,8 @@
 #include <precomph.h>
 #include "lexer.h"
 #include "parser.h"
+#include "semantic.h"  // Добавлен include для семантического анализа
+#include "analysis.h"  // Предполагается, что у вас есть этот файл с функциями анализа
 #include <filesystem>
 
 namespace fs = std::filesystem;
@@ -79,7 +81,7 @@ int main(int argc, char* argv[]) {
                     parser::writeTokenLog(tokens, output_filename, token_log_filename);
                     
                     parser::Parser parser(tokens);
-                    if (!performSyntaxAnalysis(tokens, output_filename, parser)) {
+                    if (!parser::performSyntaxAnalysis(tokens, output_filename, parser)) {
                         return 1;
                     }
                     
@@ -91,20 +93,57 @@ int main(int argc, char* argv[]) {
                 }
             case 3:
                 {
-                    std::cout << "=== SEMANTIC ANALYSIS (TODO) ===\n";
+                    std::cout << "=== SEMANTIC ANALYSIS ===\n";
+                    std::string source_code;
+                    if (!performPreprocessing(input_files, output_filename, source_code)) {
+                        return 1;
+                    }
+                    
+                    std::vector<lexan::Token> tokens;
+                    if (!performLexicalAnalysis(source_code, output_filename, tokens)) {
+                        return 1;
+                    }
+                    
+                    std::string token_log_filename = output_filename + ".tokens.log";
+                    parser::writeTokenLog(tokens, output_filename, token_log_filename);
+                    
+                    // Синтаксический анализ
+                    parser::Parser parser(tokens);
+                    if (!parser.parse()) {
+                        std::cout << "Parsing failed! Cannot perform semantic analysis.\n";
+                        return 1;
+                    }
+                    
+                    // Семантический анализ
+                    semantic::SemanticAnalyzer analyzer;
+                    if (performSemanticAnalysis(parser.get_ast(), output_filename, analyzer)) {
+                        return 1;
+                    }
+                    
+                    std::cout << "\nSemantic analysis completed successfully!\n";
                     break;
                 }
             case 4:
                 {
                     std::cout << "=== CODE GENERATION (TODO) ===\n";
+                    // TODO: Реализовать генерацию кода
                     break;
                 }
             case 5:
-            {
-                std::cout << "=== CODE RUNNING (TODO) ===\n";
-                break;
-            }
+                {
+                    std::cout << "=== CODE RUNNING (TODO) ===\n";
+                    // TODO: Реализовать запуск сгенерированного кода
+                    break;
+                }
             default:
+                std::cout << "Unknown command: " << call << "\n";
+                std::cout << "Available commands:\n";
+                std::cout << "  0 - Preprocessing only\n";
+                std::cout << "  1 - Lexical analysis + tokens\n";
+                std::cout << "  2 - Syntax analysis + AST\n";
+                std::cout << "  3 - Semantic analysis\n";
+                std::cout << "  4 - Code generation (TODO)\n";
+                std::cout << "  5 - Code running (TODO)\n";
                 return 1;
         }
     }

@@ -1,0 +1,23 @@
+=====Preprocessor log=====
+Main file read: exmp.txt
+Output filename set to: out.txt
+Processing additional file: functions.txt
+Successfully inserted functions from functions.txt after [functions section begin]
+Added macro from functions.txt: ##perceive SIZE 30
+Added macro from functions.txt: ##perceive NAME "Gleb"
+Processed ##inaddition directives: 1
+Macro defined: AGE = 19
+Macro defined: NAME = "Gleb"
+Macro defined: SIZE = 30
+Macro defined: NAME = "Gleb"
+  Replaced NAME with "Gleb"
+Removed: Preprocessor section begin
+Removed: Preprocessor section end
+Removed: Functions section begin (plural)
+Removed: Functions section end (plural)
+Removed: Superior function begin
+Removed: Superior function end
+Removed 9 empty lines
+==========================
+Error: could not write preprocessed file
+
