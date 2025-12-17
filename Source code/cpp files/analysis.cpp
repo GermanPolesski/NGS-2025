@@ -3,6 +3,7 @@
 #include <fstream>
 #include <filesystem>
 #include <iomanip>
+#include <sstream>
 #include "precomph.h"
 
 namespace fs = std::filesystem;
@@ -58,4 +59,100 @@ bool performSemanticAnalysis(parser::ASTNode* ast,
     }
     
     return true;
+}
+
+bool performRPNConversion(parser::ASTNode* ast, 
+                         const std::string& filename,
+                         rpn::RPNConverter& converter) {
+    std::cout << "Converting expressions to Reverse Polish Notation...\n";
+    
+    if (!ast) {
+        std::cout << "Error: AST is null\n";
+        return false;
+    }
+    
+    // Конвертируем программу в RPN
+    std::string rpn_result = converter.convert_program(ast);
+    
+    // Сохраняем результат
+    std::string rpn_filename = filename + ".rpn.txt";
+    std::ofstream rpn_file(rpn_filename);
+    if (!rpn_file.is_open()) {
+        std::cout << "Error: Could not create RPN output file\n";
+        return false;
+    }
+    
+    rpn_file << rpn_result;
+    rpn_file.close();
+    
+    std::cout << "RPN conversion successful!\n";
+    std::cout << "RPN output saved to: " << rpn_filename << "\n";
+    
+    // Выводим часть результата в консоль
+    std::cout << "\n=== RPN Result (first 50 lines) ===\n";
+    std::istringstream iss(rpn_result);
+    std::string line;
+    int line_count = 0;
+    while (std::getline(iss, line) && line_count < 50) {
+        std::cout << line << "\n";
+        line_count++;
+    }
+    
+    return true;
+}
+
+bool performCodeGeneration(parser::ASTNode* ast, 
+                          const std::string& filename,
+                          codegen::CodeGenerator& generator,
+                          semantic::SemanticAnalyzer* analyzer) {
+    std::cout << "Generating JavaScript code...\n";
+    
+    if (!ast) {
+        std::cout << "Error: AST is null\n";
+        return false;
+    }
+    
+    // Generate JavaScript code
+    std::string js_code = generator.generate(ast, analyzer);
+    
+    // Save to file
+    std::string js_filename = filename + ".js";
+    generator.save_to_file(js_filename);
+    
+    std::cout << "Code generation successful!\n";
+    std::cout << "JavaScript file saved to: " << js_filename << "\n";
+    
+    // Show first 50 lines
+    std::cout << "\n=== Generated JavaScript (first 50 lines) ===\n";
+    std::istringstream iss(js_code);
+    std::string line;
+    int line_count = 0;
+    while (std::getline(iss, line) && line_count < 50) {
+        std::cout << line << "\n";
+        line_count++;
+    }
+    
+    return true;
+}
+
+bool executeGeneratedCode(const std::string& js_filename) {
+    #ifdef _WIN32
+        std::string command = "node \"" + js_filename + "\"";
+    #else
+        std::string command = "node \"" + js_filename + "\"";
+    #endif
+    
+    std::cout << "Executing: " << command << "\n";
+    std::cout << "========================================\n";
+    
+    int result = system(command.c_str());
+    
+    std::cout << "========================================\n";
+    if (result == 0) {
+        std::cout << "Execution completed successfully!\n";
+        return true;
+    } else {
+        std::cout << "Execution failed with error code: " << result << "\n";
+        return false;
+    }
 }

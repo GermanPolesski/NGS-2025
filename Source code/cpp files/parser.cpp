@@ -89,44 +89,137 @@ ASTNode* Parser::parse_program() {
 ASTNode* Parser::parse_procedure_decl() {
     size_t start_pos = current_pos;
     
+    std::cout << "[PARSER DEBUG] Starting parse_procedure_decl at position " << start_pos << std::endl;
+    
     if (!expect(lexan::TK_PROCEDURE, "Expected 'procedure'")) return nullptr;
     if (!expect(lexan::TK_ALGO, "Expected 'algo'")) return nullptr;
     
     if (current_token().type != lexan::TK_IDENTIFIER) {
+        std::cout << "[PARSER ERROR] Expected identifier after 'algo', got: " 
+                  << current_token().value << std::endl;
         return nullptr;
     }
     
     ASTNode* proc_node = new ASTNode(ASTNode::Type::PROCEDURE_DECL, 
                                      current_token().value, current_token());
+    std::cout << "[PARSER DEBUG] Creating procedure: " << current_token().value << std::endl;
     advance();
     
     if (!expect(lexan::TK_LPAREN, "Expected '(' after procedure name")) {
         delete proc_node;
         return nullptr;
     }
+    
+    // Парсим параметры (в вашем случае процедуры могут иметь параметры)
+    ASTNode* params_node = new ASTNode(ASTNode::Type::PARAM_LIST, "params");
+    
+    if (current_token().type != lexan::TK_RPAREN) {
+        // Парсим параметры, если они есть
+        do {
+            if (current_token().type != lexan::TK_UNSIGNED && 
+                current_token().type != lexan::TK_INT &&
+                current_token().type != lexan::TK_BOOL &&
+                current_token().type != lexan::TK_STRING &&
+                current_token().type != lexan::TK_TIME_T &&
+                current_token().type != lexan::TK_SYMB) {
+                std::cout << "[PARSER ERROR] Expected type specifier in parameter, got: " 
+                          << current_token().value << std::endl;
+                delete params_node;
+                delete proc_node;
+                return nullptr;
+            }
+            
+            ASTNode* param_type = new ASTNode(ASTNode::Type::TYPE_SPECIFIER,
+                                             lexan::Lexer::token_type_to_string(current_token().type),
+                                             current_token());
+            advance();
+            
+            if (param_type->value == "UNSIGNED") {
+                if (!expect(lexan::TK_INT, "Expected 'int' after 'unsigned'")) {
+                    delete param_type;
+                    delete params_node;
+                    delete proc_node;
+                    return nullptr;
+                }
+                param_type->value = "UNSIGNED INT";
+            }
+            
+            if (current_token().type != lexan::TK_IDENTIFIER) {
+                std::cout << "[PARSER ERROR] Expected parameter name, got: " 
+                          << current_token().value << std::endl;
+                delete param_type;
+                delete params_node;
+                delete proc_node;
+                return nullptr;
+            }
+            
+            ASTNode* param_node = new ASTNode(ASTNode::Type::IDENTIFIER,
+                                             current_token().value, current_token());
+            param_node->addChild(param_type);
+            params_node->addChild(param_node);
+            advance();
+            
+            if (current_token().type == lexan::TK_RPAREN) break;
+            if (!expect(lexan::TK_COMMA, "Expected ',' between parameters")) {
+                delete params_node;
+                delete proc_node;
+                return nullptr;
+            }
+        } while (!is_at_end());
+    }
+    
+    // ДОБАВЛЯЕМ params_node как ребенка proc_node
+    proc_node->addChild(params_node);
+    
     if (!expect(lexan::TK_RPAREN, "Expected ')' after parameter list")) {
         delete proc_node;
         return nullptr;
     }
     
+    std::cout << "[PARSER DEBUG] Before procedure body, current token: " 
+              << current_token().value << std::endl;
+    
     if (!expect(lexan::TK_LBRACE, "Expected '{' to start procedure body")) {
+        std::cout << "[PARSER ERROR] Expected '{', got: " << current_token().value << std::endl;
         delete proc_node;
         return nullptr;
     }
     
+    std::cout << "[PARSER DEBUG] Starting procedure body, current token: " 
+              << current_token().value << std::endl;
+    
     ASTNode* body_node = new ASTNode(ASTNode::Type::BLOCK, "procedure_body");
+    
+    // Парсим операторы в теле процедуры
+    int stmt_count = 0;
     while (current_token().type != lexan::TK_RBRACE && !is_at_end()) {
+        std::cout << "[PARSER DEBUG] Parsing statement " << stmt_count 
+                  << " in procedure, current token: " << current_token().value 
+                  << " (type: " << lexan::Lexer::token_type_to_string(current_token().type) << ")" 
+                  << std::endl;
+        
         ASTNode* stmt = parse_statement();
         if (!stmt) {
+            std::cout << "[PARSER ERROR] Failed to parse statement in procedure body" << std::endl;
+            std::cout << "  Current token: " << current_token().value 
+                      << " at line " << current_token().line << std::endl;
             delete body_node;
             delete proc_node;
             return nullptr;
         }
         body_node->addChild(stmt);
+        stmt_count++;
+        
+        std::cout << "[PARSER DEBUG] Successfully parsed statement " << stmt_count 
+                  << " of type: " << static_cast<int>(stmt->type) << std::endl;
     }
     
+    // ДОБАВЛЯЕМ body_node как ребенка proc_node
+    proc_node->addChild(body_node);
+    
+    std::cout << "[PARSER DEBUG] Procedure body parsed with " << stmt_count << " statements" << std::endl;
+    
     if (!expect(lexan::TK_RBRACE, "Expected '}' to end procedure body")) {
-        delete body_node;
         delete proc_node;
         return nullptr;
     }
@@ -135,12 +228,17 @@ ASTNode* Parser::parse_procedure_decl() {
                                      tokens.begin() + current_pos);
     check_with_fst(ASTNode::Type::PROCEDURE_DECL, context);
     
+    std::cout << "[PARSER DEBUG] Completed procedure: " << proc_node->value 
+              << " with " << body_node->children.size() 
+              << " statements in body, total children: " << proc_node->children.size() << std::endl;
+    
     return proc_node;
 }
 
 ASTNode* Parser::parse_function_decl() {
     size_t start_pos = current_pos;
     
+    // Получаем тип возвращаемого значения
     ASTNode* return_type = new ASTNode(ASTNode::Type::TYPE_SPECIFIER, 
                                        lexan::Lexer::token_type_to_string(current_token().type),
                                        current_token());
@@ -225,15 +323,19 @@ ASTNode* Parser::parse_function_decl() {
         return nullptr;
     }
     
+    // ТЕЛО ФУНКЦИИ - КРИТИЧЕСКАЯ ЧАСТЬ
     if (!expect(lexan::TK_LBRACE, "Expected '{' to start function body")) {
         delete func_node;
         return nullptr;
     }
     
     ASTNode* body_node = new ASTNode(ASTNode::Type::BLOCK, "function_body");
+    
+    // Парсим все операторы внутри тела функции
     while (current_token().type != lexan::TK_RBRACE && !is_at_end()) {
         ASTNode* stmt = parse_statement();
         if (!stmt) {
+            std::cout << "[PARSER] Failed to parse statement in function body\n";
             delete body_node;
             delete func_node;
             return nullptr;
@@ -241,12 +343,14 @@ ASTNode* Parser::parse_function_decl() {
         body_node->addChild(stmt);
     }
     
+    func_node->addChild(body_node);
+    
     if (!expect(lexan::TK_RBRACE, "Expected '}' to end function body")) {
-        delete body_node;
         delete func_node;
         return nullptr;
     }
     
+    // Проверяем с помощью FST
     std::vector<lexan::Token> context(tokens.begin() + start_pos, 
                                      tokens.begin() + current_pos);
     check_with_fst(ASTNode::Type::FUNCTION_DECL, context);
@@ -465,7 +569,12 @@ ASTNode* Parser::parse_function_call() {
                       func_token.type <= lexan::TK_BUILTIN_SUM4;
     bool is_ident = func_token.type == lexan::TK_IDENTIFIER;
     
+    std::cout << "[PARSER DEBUG] parse_function_call: " << func_name 
+              << ", is_builtin=" << is_builtin 
+              << ", is_ident=" << is_ident << std::endl;
+    
     if (!is_builtin && !is_ident) {
+        std::cout << "[PARSER ERROR] Not a valid function call start: " << func_name << std::endl;
         return nullptr;
     }
     
@@ -482,6 +591,7 @@ ASTNode* Parser::parse_function_call() {
         do {
             ASTNode* arg = parse_expression();
             if (!arg) {
+                std::cout << "[PARSER ERROR] Failed to parse argument in function call" << std::endl;
                 delete args_node;
                 delete call_node;
                 return nullptr;
@@ -498,6 +608,9 @@ ASTNode* Parser::parse_function_call() {
     }
     
     call_node->addChild(args_node);
+    
+    std::cout << "[PARSER DEBUG] Function call parsed: " << func_name 
+              << " with " << args_node->children.size() << " arguments\n";
     
     if (!expect(lexan::TK_RPAREN, "Expected ')' after arguments")) {
         delete call_node;

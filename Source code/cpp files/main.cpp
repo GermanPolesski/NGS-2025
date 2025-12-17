@@ -1,9 +1,15 @@
 #include <precomph.h>
 #include "lexer.h"
 #include "parser.h"
-#include "semantic.h"  // Добавлен include для семантического анализа
-#include "analysis.h"  // Предполагается, что у вас есть этот файл с функциями анализа
+#include "semantic.h"
+#include "analysis.h"
+#include "rpnconverter.h"
+#include "codegen.h"
 #include <filesystem>
+#include <chrono>
+#include <cstdlib>
+#include <sys/stat.h>
+#include <unistd.h>  // Для getpid()
 
 namespace fs = std::filesystem;
 
@@ -29,7 +35,7 @@ int main(int argc, char* argv[]) {
         }
 
         switch(call) {
-            case 0: 
+            case 0: // -prep
                 {
                     std::cout << "=== PREPROCESSING ONLY ===\n";
                     short prep_result = Preprocess(input_files, output_filename);
@@ -40,7 +46,7 @@ int main(int argc, char* argv[]) {
                     std::cout << "Preprocessed code saved to: " << output_filename << "\n";
                     break; 
                 }   
-            case 1:
+            case 1: // -lex
                 {
                     std::cout << "=== LEXICAL ANALYSIS ===\n";
                     std::string source_code;
@@ -64,7 +70,7 @@ int main(int argc, char* argv[]) {
                     std::cout << "\nLexical analysis completed successfully!\n";
                     break;
                 }
-            case 2:
+            case 2: // -syn
                 {
                     std::cout << "=== SYNTAX ANALYSIS ===\n";
                     std::string source_code;
@@ -91,7 +97,7 @@ int main(int argc, char* argv[]) {
                     std::cout << "  - " << output_filename << ".ast.dot (Graphviz DOT format)\n";
                     break;
                 }
-            case 3:
+            case 3: // -sem
                 {
                     std::cout << "=== SEMANTIC ANALYSIS ===\n";
                     std::string source_code;
@@ -116,34 +122,184 @@ int main(int argc, char* argv[]) {
                     
                     // Семантический анализ
                     semantic::SemanticAnalyzer analyzer;
-                    if (performSemanticAnalysis(parser.get_ast(), output_filename, analyzer)) {
+                    if (!performSemanticAnalysis(parser.get_ast(), output_filename, analyzer)) {
                         return 1;
                     }
                     
                     std::cout << "\nSemantic analysis completed successfully!\n";
                     break;
                 }
-            case 4:
+            case 4: // -pol (польская нотация)
                 {
-                    std::cout << "=== CODE GENERATION (TODO) ===\n";
-                    // TODO: Реализовать генерацию кода
+                    std::cout << "=== REVERSE POLISH NOTATION CONVERSION ===\n";
+                    std::string source_code;
+                    if (!performPreprocessing(input_files, output_filename, source_code)) {
+                        return 1;
+                    }
+                    
+                    std::vector<lexan::Token> tokens;
+                    if (!performLexicalAnalysis(source_code, output_filename, tokens)) {
+                        return 1;
+                    }
+                    
+                    std::string token_log_filename = output_filename + ".tokens.log";
+                    parser::writeTokenLog(tokens, output_filename, token_log_filename);
+                    
+                    // Синтаксический анализ
+                    parser::Parser parser(tokens);
+                    if (!parser.parse()) {
+                        std::cout << "Parsing failed! Cannot perform RPN conversion.\n";
+                        return 1;
+                    }
+                    
+                    // RPN конверсия
+                    rpn::RPNConverter converter;
+                    if (!performRPNConversion(parser.get_ast(), output_filename, converter)) {
+                        return 1;
+                    }
+                    
+                    std::cout << "\nRPN conversion completed successfully!\n";
                     break;
                 }
-            case 5:
+            case 5: // -tran (трансляция в JS)
                 {
-                    std::cout << "=== CODE RUNNING (TODO) ===\n";
-                    // TODO: Реализовать запуск сгенерированного кода
+                    std::cout << "=== CODE GENERATION ===\n";
+                    std::string source_code;
+                    if (!performPreprocessing(input_files, output_filename, source_code)) {
+                        return 1;
+                    }
+                    
+                    std::vector<lexan::Token> tokens;
+                    if (!performLexicalAnalysis(source_code, output_filename, tokens)) {
+                        return 1;
+                    }
+                    
+                    std::string token_log_filename = output_filename + ".tokens.log";
+                    parser::writeTokenLog(tokens, output_filename, token_log_filename);
+                    
+                    // Синтаксический анализ
+                    parser::Parser parser(tokens);
+                    if (!parser.parse()) {
+                        std::cout << "Parsing failed! Cannot generate code.\n";
+                        return 1;
+                    }
+                    
+                    // Семантический анализ
+                    semantic::SemanticAnalyzer analyzer;
+                    if (!analyzer.analyze(parser.get_ast())) {
+                        std::cout << "Semantic analysis failed! Code generation may produce incorrect results.\n";
+                    }
+                    
+                    // Генерация кода
+                    codegen::CodeGenerator generator;
+                    std::string js_code = generator.generate(parser.get_ast(), &analyzer);
+                    
+                    // Сохранение кода в файл
+                    std::string js_filename = output_filename + ".js";
+                    
+                    std::ofstream js_file(js_filename);
+                    if (!js_file.is_open()) {
+                        std::cout << "Error: Could not create JavaScript file\n";
+                        return 1;
+                    }
+                    
+                    js_file << js_code;
+                    js_file.close();
+                    
+                    std::cout << "Code generation successful!\n";
+                    std::cout << "JavaScript code saved to: " << js_filename << "\n";
+                    
+                    // Показать часть сгенерированного кода
+                    std::cout << "\n=== Generated JavaScript (first 50 lines) ===\n";
+                    std::istringstream iss(js_code);
+                    std::string line;
+                    int line_count = 0;
+                    while (std::getline(iss, line) && line_count < 50) {
+                        std::cout << line << "\n";
+                        line_count++;
+                    }
+                    break;
+                }
+            case 6: // -run (запуск сгенерированного кода)
+                {
+                    std::cout << "=== CODE EXECUTION ===\n";
+                    
+                    // Сначала проверяем, установлен ли Node.js
+                    std::cout << "Checking Node.js installation...\n";
+                    int node_check = system("which node > /dev/null 2>&1");
+                    if (node_check != 0) {
+                        std::cout << "Error: Node.js is not installed!\n";
+                        std::cout << "Install Node.js with:\n";
+                        std::cout << "  sudo apt update\n";
+                        std::cout << "  sudo apt install nodejs npm\n";
+                        return 1;
+                    }
+                    
+                    std::string source_code;
+                    if (!performPreprocessing(input_files, output_filename, source_code)) {
+                        return 1;
+                    }
+                    
+                    std::vector<lexan::Token> tokens;
+                    if (!performLexicalAnalysis(source_code, output_filename, tokens)) {
+                        return 1;
+                    }
+                    
+                    // Синтаксический анализ
+                    parser::Parser parser(tokens);
+                    if (!parser.parse()) {
+                        std::cout << "Parsing failed! Cannot generate code for execution.\n";
+                        return 1;
+                    }
+                    
+                    // Генерация кода
+                    codegen::CodeGenerator generator;
+                    std::string js_code = generator.generate(parser.get_ast());
+                    
+                    // Создаем временный файл
+                    std::string temp_js_filename = "/tmp/mycompiler_" + std::to_string(getpid()) + ".js";
+                    
+                    std::ofstream temp_file(temp_js_filename);
+                    if (!temp_file.is_open()) {
+                        std::cout << "Error: Could not create temporary file\n";
+                        return 1;
+                    }
+                    
+                    temp_file << js_code;
+                    temp_file.close();
+                    
+                    // Запуск сгенерированного JavaScript кода
+                    std::cout << "\nExecuting generated JavaScript code...\n";
+                    std::cout << "========================================\n";
+                    
+                    // Собираем команду для выполнения
+                    std::string command = "node \"" + temp_js_filename + "\"";
+                    
+                    // Выполняем команду
+                    int result = system(command.c_str());
+                    
+                    std::cout << "========================================\n";
+                    
+                    // Удаляем временный файл
+                    std::remove(temp_js_filename.c_str());
+                    
+                    if (result == 0) {
+                        std::cout << "Execution completed successfully!\n";
+                    } else {
+                        std::cout << "Execution failed with exit code: " << result << "\n";
+                    }
                     break;
                 }
             default:
                 std::cout << "Unknown command: " << call << "\n";
                 std::cout << "Available commands:\n";
-                std::cout << "  0 - Preprocessing only\n";
-                std::cout << "  1 - Lexical analysis + tokens\n";
-                std::cout << "  2 - Syntax analysis + AST\n";
-                std::cout << "  3 - Semantic analysis\n";
-                std::cout << "  4 - Code generation (TODO)\n";
-                std::cout << "  5 - Code running (TODO)\n";
+                std::cout << "  -prep  : Preprocessing only\n";
+                std::cout << "  -lex   : Lexical analysis + tokens\n";
+                std::cout << "  -syn   : Syntax analysis + AST\n";
+                std::cout << "  -sem   : Semantic analysis\n";
+                std::cout << "  -pol   : Reverse Polish Notation conversion\n";
+                std::cout << "  -tran  : Code generation to JavaScript\n";
+                std::cout << "  -run   : Execute generated JavaScript code\n";
                 return 1;
         }
     }

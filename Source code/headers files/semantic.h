@@ -3,6 +3,7 @@
 
 #include "parser.h"
 #include "lexer.h"
+#include "rpnconverter.h"
 #include <string>
 #include <vector>
 #include <unordered_map>

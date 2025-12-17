@@ -1,15 +1,17 @@
 #include <precomph.h>
 
-//flags and codes:
-//-p: preprocessor (code 0)
-//-log: log of translator's work (code 1)
-//-l: lexical analyser (code 2)
-//-s: syntaxis analyser (code 3)
-//-o: object code (code 4)
-//-r: run project (code 5)
+// Flags and codes:
+// -prep: preprocessor (code 0)
+// -log: log of translator's work (code 1) 
+// -lex: lexical analyser (code 2)
+// -syn: syntaxis analyser (code 3)
+// -sem: semantic analyser (code 4)
+// -pol: polish notation generation (code 5)
+// -tran: translation (code 6)
+// -run: run project (code 7)
 
-const char* flags[] = {"-p", "-l", "-s", "-sem", "-j", "-r"};
-const short flagCodes[] = {0, 1, 2, 3, 4, 5};
+const char* flags[] = {"-prep", "-lex", "-syn", "-sem", "-pol", "-tran", "-run"};
+const short flagCodes[] = {0, 1, 2, 3, 4, 5, 6, 7};
 const unsigned short numFlags = sizeof(flags) / sizeof(flags[0]);
 
 short getFlagCode(const char* arg) {

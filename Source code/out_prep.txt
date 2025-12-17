@@ -1,6 +1,7 @@
 int algo SumarizE (int a, int b, int c, int d)
 {
-return a + b + c + d;
+est e = a + b + c +d;
+return e;
 }
 procedure algo sayHi ()
 {
@@ -77,4 +78,6 @@ second = 'g';
 third = 's';
 message = unite(3, first, second, third);
 proclaim(message);
+SayHello();
+sayHi();
 }

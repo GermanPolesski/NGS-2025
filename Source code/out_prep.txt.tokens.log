@@ -1,7 +1,7 @@
 === TOKENIZATION LOG ===
 File: out_prep.txt
-Date: 2025-12-16 17:50:43
-Total tokens: 415
+Date: 2025-12-17 04:31:22
+Total tokens: 424
 =======================
 
    0:                       INT "int" at line 1:1
@@ -21,38 +21,38 @@ Total tokens: 415
   14:                IDENTIFIER "d" at line 1:45
   15:                    RPAREN ")" at line 1:46
   16:                    LBRACE "{" at line 2:1
-  17:                    RETURN "return" at line 3:1
-  18:                IDENTIFIER "a" at line 3:8
-  19:                      PLUS "+" at line 3:10
-  20:                IDENTIFIER "b" at line 3:12
-  21:                      PLUS "+" at line 3:14
-  22:                IDENTIFIER "c" at line 3:16
-  23:                      PLUS "+" at line 3:18
-  24:                IDENTIFIER "d" at line 3:20
-  25:                 SEMICOLON ";" at line 3:21
-  26:                    RBRACE "}" at line 4:1
-  27:                 PROCEDURE "procedure" at line 5:1
-  28:                      ALGO "algo" at line 5:11
-  29:                IDENTIFIER "sayHi" at line 5:16
-  30:                    LPAREN "(" at line 5:22
-  31:                    RPAREN ")" at line 5:23
-  32:                    LBRACE "{" at line 6:1
-  33:                  PROCLAIM "proclaim" at line 7:1
-  34:                    LPAREN "(" at line 7:9
-  35:                STRING_LIT "Hi" at line 7:10
-  36:                    RPAREN ")" at line 7:14
-  37:                 SEMICOLON ";" at line 7:15
+  17:                       EST "est" at line 3:1
+  18:                IDENTIFIER "e" at line 3:5
+  19:                    ASSIGN "=" at line 3:7
+  20:                IDENTIFIER "a" at line 3:9
+  21:                      PLUS "+" at line 3:11
+  22:                IDENTIFIER "b" at line 3:13
+  23:                      PLUS "+" at line 3:15
+  24:                IDENTIFIER "c" at line 3:17
+  25:                      PLUS "+" at line 3:19
+  26:                IDENTIFIER "d" at line 3:20
+  27:                 SEMICOLON ";" at line 3:21
+  28:                    RETURN "return" at line 4:1
+  29:                IDENTIFIER "e" at line 4:8
+  30:                 SEMICOLON ";" at line 4:9
+  31:                    RBRACE "}" at line 5:1
+  32:                 PROCEDURE "procedure" at line 6:1
+  33:                      ALGO "algo" at line 6:11
+  34:                IDENTIFIER "sayHi" at line 6:16
+  35:                    LPAREN "(" at line 6:22
+  36:                    RPAREN ")" at line 6:23
+  37:                    LBRACE "{" at line 7:1
   38:                  PROCLAIM "proclaim" at line 8:1
   39:                    LPAREN "(" at line 8:9
-  40:                STRING_LIT "Gleb" at line 8:10
-  41:                    RPAREN ")" at line 8:16
-  42:                 SEMICOLON ";" at line 8:17
-  43:                    RBRACE "}" at line 9:1
-  44:                 PROCEDURE "procedure" at line 10:1
-  45:                      ALGO "algo" at line 10:11
-  46:                IDENTIFIER "SayHello" at line 10:16
-  47:                    LPAREN "(" at line 10:24
-  48:                    RPAREN ")" at line 10:25
-  49:                    LBRACE "{" at line 11:1
-... and 365 more tokens
+  40:                STRING_LIT "Hi" at line 8:10
+  41:                    RPAREN ")" at line 8:14
+  42:                 SEMICOLON ";" at line 8:15
+  43:                  PROCLAIM "proclaim" at line 9:1
+  44:                    LPAREN "(" at line 9:9
+  45:                STRING_LIT "Gleb" at line 9:10
+  46:                    RPAREN ")" at line 9:16
+  47:                 SEMICOLON ";" at line 9:17
+  48:                    RBRACE "}" at line 10:1
+  49:                 PROCEDURE "procedure" at line 11:1
+... and 374 more tokens
 

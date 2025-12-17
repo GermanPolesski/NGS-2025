@@ -2,6 +2,7 @@
 #include <iostream>
 #include <sstream>
 #include <iomanip>
+#include <set>
 
 namespace semantic {
 
@@ -371,23 +372,16 @@ TypeInfo SemanticAnalyzer::get_binary_op_result_type(const TypeInfo& t1,
 }
 
 // Проверка встроенных функций
+// Исправляем is_builtin_function
 bool SemanticAnalyzer::is_builtin_function(const std::string& name) {
-    bool result = name == "proclaim" || name == "to_str" || name == "TimeFled" ||
-                  name == "ThisVeryMoment" || name == "unite" || name == "sum4";
-    std::cout << "[DEBUG] is_builtin_function: " << name << " -> " << result << std::endl;
-    return result;
+    static const std::set<std::string> builtins = {
+        "proclaim", "to_str", "TimeFled", 
+        "ThisVeryMoment", "unite", "sum4"
+    };
+    return builtins.find(name) != builtins.end();
 }
 
-TypeInfo SemanticAnalyzer::get_builtin_return_type(const std::string& name) {
-    if (name == "proclaim") return TypeInfo("void", true, "undefined");
-    if (name == "to_str") return TypeInfo("string", true, "string");
-    if (name == "TimeFled") return TypeInfo("int", true, "number");
-    if (name == "ThisVeryMoment") return TypeInfo("time_t", true, "number");
-    if (name == "unite") return TypeInfo("string", true, "string");
-    if (name == "sum4") return TypeInfo("int", true, "number");
-    return TypeInfo("unknown", false, "any");
-}
-
+// Добавляем правильную проверку аргументов
 bool SemanticAnalyzer::check_builtin_arguments(const std::string& name,
                                               const std::vector<TypeInfo>& arg_types) {
     // Простая проверка для примера
@@ -398,6 +392,16 @@ bool SemanticAnalyzer::check_builtin_arguments(const std::string& name,
     if (name == "unite") return arg_types.size() >= 2;
     if (name == "sum4") return arg_types.size() == 4;
     return false;
+}
+
+TypeInfo SemanticAnalyzer::get_builtin_return_type(const std::string& name) {
+    if (name == "proclaim") return TypeInfo("void", true, "undefined");
+    if (name == "to_str") return TypeInfo("string", true, "string");
+    if (name == "TimeFled") return TypeInfo("int", true, "number");
+    if (name == "ThisVeryMoment") return TypeInfo("time_t", true, "number");
+    if (name == "unite") return TypeInfo("string", true, "string");
+    if (name == "sum4") return TypeInfo("int", true, "number");
+    return TypeInfo("unknown", false, "any");
 }
 
 // Методы добавления ошибок и предупреждений

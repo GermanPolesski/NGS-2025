@@ -218,11 +218,15 @@ namespace lexan {
 				token.numeric_data.int_value = std::stol(number_str);
 			}
 		} catch (const std::out_of_range&) {
+			std::cout << "\nВ строке " << start_line << ", столбец " << start_column 
+					  << ": Числовое значение вне диапазона: " << number_str << "\n\n";
 			token.type = TK_ERROR;
-			token.value = "Number out of range: " + number_str;
+			token.value = "";
 		} catch (const std::invalid_argument&) {
+			std::cout << "\nВ строке " << start_line << ", столбец " << start_column 
+					  << ": Некорректный числовой формат: " << number_str << "\n\n";
 			token.type = TK_ERROR;
-			token.value = "Invalid number: " + number_str;
+			token.value = "";
 		}
 		
 		return token;
@@ -274,7 +278,11 @@ namespace lexan {
 					case '\\': str_value += '\\'; break;
 					case '\"': str_value += '\"'; break;
 					case '\'': str_value += '\''; break;
-					default: str_value += current_char; break;
+					default:
+						std::cout << "\nВ строке " << line << ", столбец " << column 
+								  << ": Неизвестный escape-символ: \\" << current_char << "\n\n";
+						str_value += current_char;
+						break;
 				}
 				escape = false;
 			} else if (current_char == '\\') {
@@ -299,7 +307,15 @@ namespace lexan {
 			advance();
 		}
 		
-		Token token(TK_ERROR, "Unterminated string literal", start_line, start_column, start_pos);
+		if (quote_char == '"') {
+			std::cout << "\nВ строке " << start_line << ", столбец " << start_column 
+					  << ": Незакрытая строковая константа\n\n";
+		} else {
+			std::cout << "\nВ строке " << start_line << ", столбец " << start_column 
+					  << ": Незакрытая символьная константа\n\n";
+		}
+		
+		Token token(TK_ERROR, "", start_line, start_column, start_pos);
 		return token;
 	}
 
@@ -429,7 +445,9 @@ namespace lexan {
 				
 			default:
 				std::string unknown(1, first_char);
-				return Token(TK_ERROR, "Unknown operator: " + unknown, start_line, start_column, start_pos);
+				std::cout << "\nВ строке " << start_line << ", столбец " << start_column 
+						  << ": Неизвестный оператор: " << unknown << "\n\n";
+				return Token(TK_ERROR, "", start_line, start_column, start_pos);
 		}
 	}
 
@@ -474,10 +492,13 @@ namespace lexan {
 		
 		Token token = get_next_token();
 		while (token.type != TK_EOF) {
+			if (token.type == TK_ERROR) {
+				break;
+			}
 			tokens.push_back(token);
 			token = get_next_token();
 		}
-		tokens.push_back(token); // Добавляем EOF
+		tokens.push_back(token);
 		
 		return tokens;
 	}
@@ -588,32 +609,29 @@ namespace lexan {
 			
 			std::ofstream out_file(output_filename);
 			if (!out_file.is_open()) {
-				std::cerr << "Error: Could not open output file: " << output_filename << std::endl;
+				Error::ThrowConsole(31, true);
 				return false;
 			}
 			
-			// Write header
-			out_file << "=== Token Analysis ===\n";
-			out_file << "Source: " << (output_filename.empty() ? "input" : output_filename) << "\n";
-			out_file << "Total tokens: " << tokens.size() << "\n";
+			out_file << "=== Анализ токенов ===\n";
+			out_file << "Источник: " << (output_filename.empty() ? "ввод" : output_filename) << "\n";
+			out_file << "Всего токенов: " << tokens.size() << "\n";
 			out_file << "================================\n\n";
 			
-			// Write column headers
-			out_file << std::left << std::setw(10) << "Line:Col"
-					<< std::setw(25) << "Token Type"
-					<< std::setw(15) << "Value"
-					<< std::setw(10) << "Index"
-					<< "Additional Info\n";
+			out_file << std::left << std::setw(10) << "Строка:Кол"
+					<< std::setw(25) << "Тип токена"
+					<< std::setw(15) << "Значение"
+					<< std::setw(10) << "Индекс"
+					<< "Доп. информация\n";
 			out_file << std::string(80, '-') << "\n";
 			
-			// Write each token
 			for (const auto& token : tokens) {
 				if (token.type == TK_EOF) {
 					out_file << std::left << std::setw(10) << (std::to_string(token.line) + ":" + std::to_string(token.column))
 							<< std::setw(25) << token_type_to_string(token.type)
 							<< std::setw(15) << "EOF"
 							<< std::setw(10) << token.index
-							<< "End of file\n";
+							<< "Конец файла\n";
 					continue;
 				}
 				
@@ -622,16 +640,14 @@ namespace lexan {
 							<< std::setw(25) << token_type_to_string(token.type)
 							<< std::setw(15) << token.value
 							<< std::setw(10) << token.index
-							<< "ERROR\n";
+							<< "ОШИБКА\n";
 					continue;
 				}
 				
 				std::string value_display = token.value;
-				// Truncate long values
 				if (value_display.length() > 20) {
 					value_display = value_display.substr(0, 17) + "...";
 				}
-				// Escape newlines in string literals for display
 				if (token.type == TK_STRING_LIT || token.type == TK_CHAR_LIT) {
 					std::string escaped;
 					for (char c : value_display) {
@@ -649,16 +665,16 @@ namespace lexan {
 				std::string additional_info;
 				if (token.type == TK_NUMBER) {
 					if (token.is_hex) {
-						additional_info = "Hex: 0x" + token.value.substr(2);
+						additional_info = "Шестн.: 0x" + token.value.substr(2);
 					} else if (token.is_octal) {
-						additional_info = "Octal: 0xx" + token.value.substr(3);
+						additional_info = "Восьм.: 0xx" + token.value.substr(3);
 					} else if (token.is_float) {
-						additional_info = "Float: " + std::to_string(token.numeric_data.float_value);
+						additional_info = "Вещ.: " + std::to_string(token.numeric_data.float_value);
 					} else {
-						additional_info = "Int: " + std::to_string(token.numeric_data.int_value);
+						additional_info = "Цел.: " + std::to_string(token.numeric_data.int_value);
 					}
 				} else if (token.type == TK_CHAR_LIT && !token.value.empty()) {
-					additional_info = "Char code: " + std::to_string(static_cast<int>(token.value[0]));
+					additional_info = "Код символа: " + std::to_string(static_cast<int>(token.value[0]));
 				}
 				
 				out_file << std::left << std::setw(10) << (std::to_string(token.line) + ":" + std::to_string(token.column))
@@ -668,9 +684,8 @@ namespace lexan {
 						<< additional_info << "\n";
 			}
 			
-			// Write summary
 			out_file << "\n================================\n";
-			out_file << "Token Counts by Category:\n";
+			out_file << "Количество токенов по категориям:\n";
 			out_file << "--------------------------------\n";
 			
 			std::map<std::string, int> category_counts;
@@ -678,43 +693,41 @@ namespace lexan {
 				std::string type_str = token_type_to_string(token.type);
 				std::string category;
 				
-				// Categorize tokens
 				if (type_str.find("TK_") == 0) {
 					if (type_str.find("BUILTIN") != std::string::npos) {
-						category = "Built-in Functions";
+						category = "Встроенные функции";
 					} else if (type_str == "TK_IDENTIFIER") {
-						category = "Identifiers";
+						category = "Идентификаторы";
 					} else if (type_str == "TK_NUMBER") {
-						category = "Numeric Literals";
+						category = "Числовые литералы";
 					} else if (type_str == "TK_STRING_LIT") {
-						category = "String Literals";
+						category = "Строковые литералы";
 					} else if (type_str == "TK_CHAR_LIT") {
-						category = "Character Literals";
+						category = "Символьные литералы";
 					} else if (type_str == "TK_TRUE" || type_str == "TK_FALSE") {
-						category = "Boolean Literals";
+						category = "Булевы литералы";
 					} else if (type_str.find("TK_") == 0 && 
 							(type_str.length() > 3 && std::isupper(type_str[3]))) {
-						// Keywords (TK_PROCEDURE, TK_IF, etc.)
-						category = "Keywords";
+						category = "Ключевые слова";
 					} else if (type_str == "TK_PLUS" || type_str == "TK_MINUS" || 
 							type_str == "TK_MULT" || type_str == "TK_DIV" ||
 							type_str.find("ASSIGN") != std::string::npos ||
 							type_str.find("INCREMENT") != std::string::npos ||
 							type_str.find("DECREMENT") != std::string::npos) {
-						category = "Operators";
+						category = "Операторы";
 					} else if (type_str == "TK_LPAREN" || type_str == "TK_RPAREN" ||
 							type_str == "TK_LBRACE" || type_str == "TK_RBRACE" ||
 							type_str == "TK_LBRACKET" || type_str == "TK_RBRACKET" ||
 							type_str == "TK_SEMICOLON" || type_str == "TK_COMMA" ||
 							type_str == "TK_COLON" || type_str == "TK_DOT") {
-						category = "Punctuation";
+						category = "Пунктуация";
 					} else if (type_str == "TK_EOF") {
-						category = "Special";
+						category = "Специальные";
 					} else {
-						category = "Other";
+						category = "Прочие";
 					}
 				} else {
-					category = "Other";
+					category = "Прочие";
 				}
 				
 				category_counts[category]++;
@@ -729,22 +742,29 @@ namespace lexan {
 			return true;
 			
 		} catch (const std::exception& e) {
-			std::cerr << "Error generating token file: " << e.what() << std::endl;
+			Error::ThrowConsole(101, true);
 			return false;
 		}
 	}
+	
 	bool performLexicalAnalysis(const std::string& source_code, const std::string& filename,
                            std::vector<lexan::Token>& tokens) {
-    std::cout << "Lexical analysis...\n";
-    lexan::Lexer lexer(source_code, filename);
-    tokens = lexer.tokenize();
-    
-    if (tokens.empty()) {
-        std::cout << "Error: No tokens generated\n";
-        return false;
-    }
-    
-    std::cout << "Tokens generated: " << tokens.size() << std::endl;
-    return true;
-}
+		std::cout << "Лексический анализ...\n";
+		lexan::Lexer lexer(source_code, filename);
+		tokens = lexer.tokenize();
+		
+		if (tokens.empty()) {
+			Error::ThrowConsole(101, true);
+			return false;
+		}
+		
+		for (const auto& token : tokens) {
+			if (token.type == TK_ERROR) {
+				return false;
+			}
+		}
+		
+		std::cout << "Сгенерировано токенов: " << tokens.size() << std::endl;
+		return true;
+	}
 }

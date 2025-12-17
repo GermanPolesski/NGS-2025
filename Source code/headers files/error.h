@@ -27,7 +27,7 @@ namespace Error {
     };
     
     error_info getErrorID(unsigned short id);
-    void ThrowConsole(unsigned short id);
+    void ThrowConsole(unsigned short id, bool critical = false);
 }
 
 #endif // ERROR_H

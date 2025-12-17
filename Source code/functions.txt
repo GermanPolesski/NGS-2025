@@ -6,7 +6,8 @@
 [function section begin]
 int algo SumarizE (int a, int b, int c, int d)
 {
-	return a + b + c + d;
+	est e = a + b + c +d;
+	return e;
 }
 procedure algo sayHi ()
 {

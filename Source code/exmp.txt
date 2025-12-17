@@ -79,5 +79,7 @@ ces
     third = 's';
     message = unite(3, first, second, third);
     proclaim(message);
+    SayHello();
+    sayHi();
 }
 [superior function end]

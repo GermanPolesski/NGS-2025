@@ -1,0 +1,49 @@
+=== PURE REVERSE POLISH NOTATION (POSTFIX) ===
+
+Function: SumarizE
+
+Function: sayHi
+
+Function: SayHello
+
+Function: IsGreater
+
+Main block:
+  Line 24: message proclaim
+    Line 30: x y IsGreater
+  Line 31: z proclaim
+    Line 33: z to_str
+  Line 34: str1 proclaim
+        Line 39: "This is " i to_str + "th iteration" +
+          Line 39: "This is " i to_str +
+            Line 39: i to_str
+      Line 40: message proclaim
+        Line 41: i 1 +
+    Line 42: i 5 <
+    Line 44: ThisVeryMoment
+  Line 45: curr proclaim
+    Line 47: curr 31557600 / 1970 +
+      Line 47: curr 31557600 /
+  Line 48: "сейчас " proclaim
+  Line 49: years proclaim
+  Line 50: " год" proclaim
+    Line 51: "16112006" "17122025" TimeFled to_str
+        Line 51: "16112006" "17122025" TimeFled
+    Line 53: 2 3 + 4 * 12 - 2 ^
+      Line 53: 2 3 + 4 * 12 -
+        Line 53: 2 3 + 4 *
+          Line 53: 2 3 +
+    Line 54: a to_str
+  Line 55: message proclaim
+    Line 60: hex1 hex2 + to_str
+        Line 60: hex1 hex2 +
+  Line 61: message proclaim
+    Line 62: 19 hex2 3 0xf SumarizE
+    Line 63: a to_str
+  Line 64: message proclaim
+    Line 69: oct1 oct2 +
+    Line 70: a to_str
+  Line 71: message proclaim
+    Line 78: 3 first second third unite
+  Line 79: message proclaim
+
