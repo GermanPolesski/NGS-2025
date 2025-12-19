@@ -121,6 +121,10 @@ private:
     
 public:
     SemanticAnalyzer();
+        bool has_warnings;
+        bool has_errors;
+        bool has_errors_occurred() const;
+        bool has_warnings_occurred() const;
     
     // Основной метод анализа
     bool analyze(parser::ASTNode* ast);

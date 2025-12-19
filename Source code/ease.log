@@ -1,6 +1,6 @@
 =====Preprocessor log=====
 Main file read: exmp2.txt
-Output filename set to: out.txt
+Output filename set to: ease.txt
 Processing additional file: functions.txt
 Successfully inserted functions from functions.txt after [functions section begin]
 Added macro from functions.txt: ##perceive SIZE 30

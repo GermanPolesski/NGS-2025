@@ -8,7 +8,7 @@
 namespace lexan {
     typedef enum {
         TK_PROCEDURE,
-        TK_ALGO,           // Уже есть!
+        TK_ALGO,
         TK_BOOL,
         TK_UNSIGNED,
         TK_INT,
@@ -46,7 +46,7 @@ namespace lexan {
         TK_LE,
         TK_EQ,
         TK_NE,
-        TK_POW,           // Уже есть!
+        TK_POW,
         TK_AND,
         TK_OR,
         TK_NOT,

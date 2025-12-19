@@ -1,0 +1,53 @@
+[preprocessor section begin]
+##program "ease"
+##inaddition "functions.txt"
+##perceive AGE 19
+##perceive NAME "Gleb"
+[preprocessor section end]
+
+[functions section begin]
+bool algo IsGreater(unsigned int a, unsigned int b)
+{
+    return a > b;
+}
+[functions section end]
+
+[superior function begin]
+ces
+{
+    est string msg;
+    msg = "Start!";
+    proclaim(msg);
+
+    est int i;
+    i = 0;
+    do {
+        proclaim("Iter " + to_str(i));
+        i = i + 1;
+    } while (i < 3);
+
+    est bool z;
+    z = IsGreater(AGE, 10);
+    proclaim(z);
+
+    est time_t curr;
+    curr = ThisVeryMoment();
+    proclaim(curr);
+
+    est int a;
+    a = (2 + 3) * 4;
+    proclaim(to_str(a));
+
+    est int hex1;
+    hex1 = 0xf;
+    est int oct1;
+    oct1 = 07;
+    proclaim(to_str(hex1 + oct1));
+
+    est symb c1;
+    c1 = 'n';
+    est symb c2;
+    c2 = 'g';
+    proclaim(unite(2, c1, c2));
+}
+[superior function end]

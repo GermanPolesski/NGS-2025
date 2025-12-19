@@ -52,7 +52,7 @@ ces
     proclaim(" год");
     message = to_str(TimeFled("16112006", "17122025"));
     est int a;
-    a = (((2 + 3) * 4) - 12) ^ 2;
+    a = (((2 + 3) * 4) - 12) ^ 3;
     message = to_str(a);
     proclaim(message);
     est int hex1;
@@ -81,5 +81,6 @@ ces
     proclaim(message);
     SayHello();
     sayHi();
+	proclaim(3 / 2);
 }
 [superior function end]
